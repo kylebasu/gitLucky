@@ -2,6 +2,7 @@
 
 var React = require('react-native');
 var config = require('./config.js');
+var Home = require('./Home')
 
 var {
 	StyleSheet,
@@ -96,13 +97,41 @@ class Login extends Component {
 		};
 	}
 
+	handleUrl() {
+		console.log(event.url);
+		this.props.navigator.push({
+			title: 'Home',
+			component: Home
+		});
+		LinkingIOS.removeEventListener('url', handleUrl)
+	}
+
 	onLoginPressed(clientID, clientSecret) {
-		LinkingIOS.openURL(["https://github.com/login/oauth/authorize?client_id=",
-			config.clientID].join(''))
-		LinkingIOS.addEventListener('url', handleUrl)
+		var that = this;
+		LinkingIOS.openURL(["https://github.com/login/oauth/authorize",
+			"?response_type=token",
+			"&client_id=",
+			config.clientID,
+			'&redirect_uri=gitLucky://com.mycompany.io'].join(''))
+		LinkingIOS.addEventListener('url', handleUrl);
 		function handleUrl (event) {
-		  console.log(event.url);
-		  LinkingIOS.removeEventListener('url', handleUrl)
+		  var gCode = event.url.split('=');
+		  var gCode = gCode[1];
+		  var needAccess = 'https://github.com/login/oauth/access_token?client_id='+ config.clientID+'&client_secret='+ config.clientSecret + '&code='+ gCode
+		  var reqObj = {
+		  	method: 'POST'
+		  };
+		  fetch(needAccess, reqObj)
+		  	.then(function(res){
+		  		var gotAccess = res._bodyInit.split('=')
+		  		var newAccess = gotAccess[1].split('&')
+				that.props.navigator.push({
+					title: 'Home',
+				  	component: Home,
+				  	passProps: {accessToken: newAccess[0]}
+				});
+				LinkingIOS.removeEventListener('url', handleUrl)
+		  	});
 		}
 	}
 
@@ -118,13 +147,6 @@ class Login extends Component {
 				<Text style={styles.title}> GitLucky </Text>
 				<Image source={require('image!GitLucky')} style={styles.image}/>
 				<View>
-					<TextInput
-						style={styles.userInput}
-						placeholder='Username'/>
-					<TextInput
-						style={styles.userInput}
-						secureTextEntry = {true}
-						placeholder='Password'/>
 					<TouchableHighlight style={styles.button}
 					    underlayColor='black'
 					    onPress={this.onLoginPressed.bind(this)}>
